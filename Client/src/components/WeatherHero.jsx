@@ -1,10 +1,8 @@
 import {
   Sun,
   Moon,
-  CloudRain,
-  Cloud,
-  Wind,
   Droplets,
+  Wind,
 } from "lucide-react";
 
 const getWeatherTheme = (description, isNight) => {
@@ -45,10 +43,10 @@ export default function WeatherHero({ weather }) {
   const hour = new Date().getHours();
   const isNight = hour >= 18 || hour <= 5;
 
-  const theme = getWeatherTheme(
-    weather.weather[0].description,
-    isNight
-  );
+  const theme = getWeatherTheme(weather.description, isNight);
+
+  // Prefer the backend's smart alert (uses temp/humidity/wind); fallback to theme advice
+  const advice = weather.alerts?.[0] || theme.advice;
 
   return (
     <section
@@ -59,10 +57,10 @@ export default function WeatherHero({ weather }) {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold">
-              {weather.name}
+              {weather.location}
             </h1>
             <p className="capitalize opacity-90">
-              {weather.weather[0].description}
+              {weather.description}
             </p>
           </div>
 
@@ -72,10 +70,10 @@ export default function WeatherHero({ weather }) {
         {/* Middle */}
         <div>
           <p className="text-5xl font-semibold">
-            {Math.round(weather.main.temp)}°C
+            {weather.temperature}°C
           </p>
           <p className="opacity-90">
-            Feels like {Math.round(weather.main.feels_like)}°C
+            Feels like {weather.feels_like}°C
           </p>
         </div>
 
@@ -84,16 +82,16 @@ export default function WeatherHero({ weather }) {
           <div className="flex gap-4">
             <span className="flex items-center gap-1">
               <Droplets size={16} />
-              {weather.main.humidity}%
+              {weather.humidity}%
             </span>
             <span className="flex items-center gap-1">
               <Wind size={16} />
-              {weather.wind.speed} m/s
+              {weather.wind_speed} m/s
             </span>
           </div>
 
           <div className="bg-black/20 px-4 py-2 rounded-xl">
-            🌱 {theme.advice}
+            🌱 {advice}
           </div>
         </div>
       </div>

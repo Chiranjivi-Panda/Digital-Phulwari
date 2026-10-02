@@ -1,47 +1,51 @@
 import { useEffect, useState } from "react";
-import WeatherHero from "./WeatherHero";
+import WeatherBar from "./WeatherBar";
+import { fetchWeather } from "../services/weatherService";
 
-const API_KEY = "ccbd267d3d0311d76290c1068d24bdb7";
-
-const WeatherCard = () => {
+const WeatherCard = ({ forceNight = null }) => {
   const [weather, setWeather] = useState(null);
   const [error, setError] = useState(null);
 
+  const loadCity = (city) => {
+    fetchWeather({ city }).then(setWeather).catch(() => {});
+  };
+
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setError("Geolocation not supported");
-      return;
+    let cancelled = false;
+
+    // 1) INSTANT: preferred (or default) city — waits for nothing
+    fetchWeather({})
+      .then((data) => { if (!cancelled) setWeather(data); })
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.detail || "Failed to fetch weather"); });
+
+    // 2) Silent refine ONLY if permission was ALREADY granted.
+    //    Never opens the popup — the popup was the 2-minute delay.
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((status) => {
+          if (status.state !== "granted") return;
+          navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+              try {
+                const data = await fetchWeather({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+                if (!cancelled) setWeather(data);
+              } catch { /* keep city data */ }
+            },
+            () => {},
+            { timeout: 5000 }
+          );
+        })
+        .catch(() => {});
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-
-        try {
-          const res = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${API_KEY}`
-          );
-
-          if (!res.ok) throw new Error("Failed to fetch weather");
-
-          const data = await res.json();
-          setWeather(data);
-        } catch (err) {
-          setError(err.message);
-        }
-      },
-      () => setError("Location permission denied")
-    );
+    return () => { cancelled = true; };
   }, []);
 
-  if (error) return <p className="text-red-500">{error}</p>;
-  if (!weather) return <p>Loading weather...</p>;
+  if (error) return <p className="text-red-500 text-xs px-1">{error}</p>;
+  if (!weather) return <div className="w-full h-11 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse"></div>;
 
-  return (
-    <div className="w-full">
-      <WeatherHero weather={weather} />
-    </div>
-  );
+  return <WeatherBar weather={weather} forceNight={forceNight} onCitySaved={loadCity} />;
 };
 
 export default WeatherCard;
